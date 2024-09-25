@@ -46,11 +46,14 @@ print(combined_data)
 
 write.csv(combined_data,file = "/Users/sidchaudhary/Documents/GitHub/seaiceextent/data/combined_data.csv")
 
+combined_data <- read.csv("/Users/sidchaudhary/Documents/GitHub/seaiceextent/data/combined_data.csv", header = TRUE)
+
 combined_data$Date <- as.Date(paste(combined_data$Year, combined_data$Month, "01", sep = "-"))
-combined_data <- filter(combined_data,Scenario=="ssp585")
+combined_data <- filter(combined_data,Scenario=="ssp245")
 
 filtered_data <- combined_data %>%
   filter(Date >= as.Date("1979-01-01") & Date <= as.Date("2023-12-31"))
+filtered_data <- filtered_data[c(-1)]
 
 summary_data <- filtered_data %>%
   group_by(Year, Model) %>%
@@ -59,10 +62,13 @@ summary_data <- filtered_data %>%
 
 sea_ice_extent <- read.csv("/Users/sidchaudhary/Documents/GitHub/seaiceextent/data/nsidc_min_max.csv")
 
+filtered_data <- rbind(filtered_data,nsidc_obs)
+
+
 summary_data <- rbind(sea_ice_extent,summary_data)
 summary_data$Model <- factor(summary_data$Model, levels = c(c("Observed", "ACCESS-CM2", "ACCESS-ESM1-5", "BCC-CSM2-MR", 
                                                               "CAMS-CSM1-0", "CanESM5", "CanESM5-CanOE", "CESM2", 
-                                                              "CESM2-WACCM", "CIESM", "CMCC-CM2-SR5", "CNRM-CM6-1", 
+                                                              "CESM2-WACCM", "CIESM", "CMCC-CM2-SR5", "CNRM-CM6-1","CNRM-ESM2-1", 
                                                               "CNRM-CM6-1-HR", "E3SM-1-1", "EC-Earth3", "EC-Earth3-Veg", 
                                                               "EC-Earth3-Veg-LR", "FGOALS-f3-L", "FGOALS-g3", "FIO-ESM-2-0", 
                                                               "GFDL-CM4", "GFDL-ESM4", "HadGEM3-GC31-LL", "HadGEM3-GC31-MM", 
@@ -70,18 +76,24 @@ summary_data$Model <- factor(summary_data$Model, levels = c(c("Observed", "ACCES
                                                               "MPI-ESM1-2-HR", "MPI-ESM1-2-LR", "MRI-ESM2-0", "NESM3", 
                                                               "NorESM2-LM", "NorESM2-MM", "TaiESM1","UKESM1-0-LL")))
 
+filtered_data$Model <- factor(filtered_data$Model, levels = levels(summary_data$Model))
 
 # Plot using ggplot (1500*1000)
 ggplot(filtered_data, aes(x = Date, y = Value)) +
   geom_line() +
   geom_vline(xintercept = as.numeric(as.Date("2014-01-01")), color = "red") +
-  labs(x = "Date (Year-Month)", y = "Value") +
+  labs(title = "Time Series of Sea Ice Extent - SSP585",
+       x = "Year",
+       y = expression(paste("Sea Ice Extent (", 10^6, " km"^2, ")")))+  # Custom Y-axis label +
   facet_wrap(~ Model)# Faceting by Model
   
 ggplot(summary_data, aes(x = Year)) +
   geom_line(aes(y = Max_Value, color = "Max Value"), linetype = "solid") +
   geom_line(aes(y = Min_Value, color = "Min Value"), linetype = "solid") +
-  labs(x = "Year", y = "Value", color = "Legend") +
+  labs(title = "Time Series of Sea Ice Extent - SSP585",
+       x = "Year",
+       y = expression(paste("Sea Ice Extent (", 10^6, " km"^2, ")")),  # Custom Y-axis label
+       color = "Legend") +
   facet_wrap(~ Model) +
   theme(
     text = element_text(size = 12, family = "sans"),
@@ -129,16 +141,18 @@ quantiles <- filtered_data %>%
 
 # Merge quantiles with the original data
 df_merged <- merge(filtered_data, quantiles, by = "Model")
+df_merged <- df_merged %>%
+  filter(is.finite(Value) & is.finite(Q1) & is.finite(median) & is.finite(Q3) & is.finite(std_dev))
 
 df_merged$Model <- factor(df_merged$Model, levels = c(c("Observed", "ACCESS-CM2", "ACCESS-ESM1-5", "BCC-CSM2-MR", 
-                                                          "CAMS-CSM1-0", "CanESM5", "CanESM5-CanOE", "CESM2", 
-                                                          "CESM2-WACCM", "CIESM", "CMCC-CM2-SR5", "CNRM-CM6-1", 
-                                                          "CNRM-CM6-1-HR", "E3SM-1-1", "EC-Earth3", "EC-Earth3-Veg", 
-                                                          "EC-Earth3-Veg-LR", "FGOALS-f3-L", "FGOALS-g3", "FIO-ESM-2-0", 
-                                                          "GFDL-CM4", "GFDL-ESM4", "HadGEM3-GC31-LL", "HadGEM3-GC31-MM", 
-                                                          "INM-CM5-0", "INM-CM4-8","IPSL-CM6A-LR", "MIROC-ES2L", "MIROC6", 
-                                                          "MPI-ESM1-2-HR", "MPI-ESM1-2-LR", "MRI-ESM2-0", "NESM3", 
-                                                          "NorESM2-LM", "NorESM2-MM", "TaiESM1","UKESM1-0-LL")))
+                                                        "CAMS-CSM1-0", "CanESM5", "CanESM5-CanOE", "CESM2", 
+                                                        "CESM2-WACCM", "CIESM", "CMCC-CM2-SR5", "CNRM-CM6-1","CNRM-ESM2-1", 
+                                                        "CNRM-CM6-1-HR", "E3SM-1-1", "EC-Earth3", "EC-Earth3-Veg", 
+                                                        "EC-Earth3-Veg-LR", "FGOALS-f3-L", "FGOALS-g3", "FIO-ESM-2-0", 
+                                                        "GFDL-CM4", "GFDL-ESM4", "HadGEM3-GC31-LL", "HadGEM3-GC31-MM", 
+                                                        "INM-CM5-0", "INM-CM4-8","IPSL-CM6A-LR", "MIROC-ES2L", "MIROC6", 
+                                                        "MPI-ESM1-2-HR", "MPI-ESM1-2-LR", "MRI-ESM2-0", "NESM3", 
+                                                        "NorESM2-LM", "NorESM2-MM", "TaiESM1","UKESM1-0-LL")))
 
 
 # Plot boxplot with quantiles marked
@@ -148,7 +162,10 @@ ggplot(df_merged, aes(x = Model, y = Value)) +
   geom_point(aes(y = median, color = "Median"), position = position_dodge(width = 0.75), size = 3) +
   geom_point(aes(y = Q3, color = "Q3"), position = position_dodge(width = 0.75), size = 3) +
   geom_point(aes(y = std_dev, color = "Std Dev"), position = position_dodge(width = 0.75), size = 3) +
-  labs(x = "Model", y = "Value", color = "Legend") +
+  labs(title = "Distribution of Model Values with Quantiles and Standard Deviation - SSP245",
+       x = "Model",
+       y = expression(paste("Sea Ice Extent (", 10^6, " km"^2, ")")),  # Custom Y-axis label
+       color = "Legend") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_color_manual(values = c("Q1" = "red", "Median" = "blue", "Q3" = "green", "Std Dev" = "purple"),

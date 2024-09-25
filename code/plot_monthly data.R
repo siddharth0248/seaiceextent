@@ -1,7 +1,13 @@
 library(ggplot2)
 library(dplyr)
+combined_data <- read.csv("/Users/sidchaudhary/Documents/GitHub/seaiceextent/data/combined_data.csv", header = TRUE)
+combined_data$Date <- as.Date(paste(combined_data$Year, combined_data$Month, "01", sep = "-"))
 
-filtered_combined_data <- combined_data %>%
+## "ssp126" "ssp245" "ssp370" "ssp585"
+combined_data <- combined_data[c(-1)]
+combined_data_ssp <- filter(combined_data,Scenario=="ssp245")
+
+filtered_combined_data <- combined_data_ssp %>%
   filter(Year > 1978)
 obs_model <- rbind(filtered_combined_data,nsidc_obs)
 
@@ -34,7 +40,7 @@ ggplot() +
   geom_hline(yintercept = 1, color = "red", linetype = "dashed", size = 1) +
   
   # Customize plot labels and theme
-  labs(title = "Time Series of Sea Ice Extent in September - SSP585",
+  labs(title = "Time Series of Sea Ice Extent in September - SSP245",
        x = "Date",
        y = expression(paste("Sea Ice Extent (", 10^6, " km"^2, ")")),  # Custom Y-axis label
        color = "Model") +
